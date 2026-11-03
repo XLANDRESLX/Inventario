@@ -1,0 +1,15 @@
+# Google Apps Script backend (no subir a GitHub Pages)
+Code.gs
+
+# Dependencias / entorno
+node_modules/
+.env
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build / dist
+dist/
+build/
