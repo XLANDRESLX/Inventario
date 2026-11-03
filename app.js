@@ -29,8 +29,27 @@ import {
 } from './sync.js';
 
 /* -------------------------------------------------------------------------- */
-const GAS_URL = 'https://script.google.com/macros/s/TU_DEPLOYMENT_ID/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyytsf4GJ8IKYWarHXxCYTpBCSqbAMf3Mzseqbv0mOjcUKBXWjVd4anfxA-1el0dX6azA/exec';
 setGASURL(GAS_URL);
+
+/**
+ * Evita que credenciales queden expuestas en la URL si alguien accede con
+ * ?usuario=...&password=... en la barra de direcciones. Las limpia del historial
+ * sin recargar la página.
+ */
+(function limpiarCredencialesEnURL() {
+  try {
+    const url = new URL(window.location.href);
+    const tieneCredenciales = url.searchParams.has('usuario') || url.searchParams.has('password');
+    if (tieneCredenciales) {
+      url.searchParams.delete('usuario');
+      url.searchParams.delete('password');
+      window.history.replaceState({}, document.title, url.toString());
+    }
+  } catch (_) {
+    // Si falla el parseo de URL, no hace nada.
+  }
+})();
 
 /* -------------------------------------------------------------------------- */
 /*  ESTADO GLOBAL                                                             */
