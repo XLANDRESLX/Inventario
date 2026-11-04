@@ -9,7 +9,8 @@
 import {
   obtenerColaPendiente,
   eliminarDeCola,
-  eliminarDeColaPorUuid
+  eliminarDeColaPorUuid,
+  actualizarIntentosEnCola
 } from './db.js';
 
 let GAS_URL = '';
@@ -74,6 +75,17 @@ export function enviarComentarioDirecto(comentario) {
  * elimina los registros enviados de la cola.
  * @returns {Promise<Object>} resumen de la sincronización
  */
+// Tamaño de cada lote de sincronización (evita saturar la conexión y el servidor)
+const BATCH_SIZE = 10;
+// Máximo de reintentos por comentario antes de dejar de reintentarlo en este ciclo
+const MAX_REINTENTOS = 5;
+// Pausa breve entre lotes para no saturar el servidor ni el navegador
+const PAUSA_ENTRE_LOTES_MS = 800;
+
+function dormir(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function sincronizarCola() {
   if (sincronizando) return { procesados: 0, mensaje: 'Ya hay una sincronización en curso' };
   if (!navigator.onLine) {
@@ -81,49 +93,82 @@ export async function sincronizarCola() {
   }
 
   sincronizando = true;
+  let totalProcesados = 0;
+  let totalExitosos = 0;
+  let totalFallidos = 0;
 
   try {
-    const pendientes = await obtenerColaPendiente();
+    let pendientes = await obtenerColaPendiente();
+
+    // No reintentar indefinidamente los que ya fallaron muchas veces
+    pendientes = pendientes.filter((p) => (p.intentos || 0) < MAX_REINTENTOS);
 
     if (!pendientes || pendientes.length === 0) {
       return { procesados: 0, exitosos: 0, fallidos: 0, mensaje: 'Cola vacía' };
     }
 
-    const comentarios = pendientes.map((p) => ({
-      uuid: p.uuid,
-      id_item: p.payload.id_item,
-      id_empresa: p.payload.id_empresa,
-      id_usuario: p.payload.id_usuario,
-      comentario: p.payload.comentario,
-      id_comentario: p.payload.id_comentario || p.uuid,
-      fecha_hora: p.payload.fecha_hora || p.fecha_creacion || new Date().toISOString()
-    }));
+    // Dividir en lotes pequeños
+    const lotes = [];
+    for (let i = 0; i < pendientes.length; i += BATCH_SIZE) {
+      lotes.push(pendientes.slice(i, i + BATCH_SIZE));
+    }
 
-    const response = await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'SYNC_BATCH',
-        comentarios: comentarios
-      })
-    });
+    for (let li = 0; li < lotes.length; li++) {
+      const lote = lotes[li];
+      const comentarios = lote.map((p) => ({
+        uuid: p.uuid,
+        id_item: p.payload.id_item,
+        id_empresa: p.payload.id_empresa,
+        id_usuario: p.payload.id_usuario,
+        comentario: p.payload.comentario,
+        id_comentario: p.payload.id_comentario || p.uuid,
+        fecha_hora: p.payload.fecha_hora || p.fecha_creacion || new Date().toISOString()
+      }));
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const response = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          action: 'sync_batch',
+          comentarios: comentarios
+        })
+      });
 
-    const resultado = await response.json();
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    // Eliminar de IndexedDB los comentarios que el servidor confirmó como enviados
-    if (resultado.detalles && Array.isArray(resultado.detalles)) {
-      const exitosos = resultado.detalles.filter((d) => d.status === 'ok');
-      for (const det of exitosos) {
-        const pendiente = pendientes.find((p) => p.uuid === det.uuid);
-        if (pendiente) {
-          try {
-            await eliminarDeCola(pendiente.id);
-          } catch (_) {
-            // No crítico: el registro ya pudo haber sido eliminado
+      const resultado = await response.json();
+
+      const exitososUuids = new Set();
+      if (resultado.detalles && Array.isArray(resultado.detalles)) {
+        const exitosos = resultado.detalles.filter((d) => d.status === 'ok');
+        for (const det of exitosos) {
+          exitososUuids.add(det.uuid);
+          const pendiente = lote.find((p) => p.uuid === det.uuid);
+          if (pendiente) {
+            try {
+              await eliminarDeCola(pendiente.id);
+            } catch (_) {
+              // No crítico: el registro ya pudo haber sido eliminado
+            }
           }
         }
+      }
+
+      // Fallidos: incrementar intentos y dejar en cola para el próximo ciclo
+      const fallidos = lote.filter((p) => !exitososUuids.has(p.uuid));
+      for (const fallido of fallidos) {
+        try {
+          await actualizarIntentosEnCola(fallido.id, (fallido.intentos || 0) + 1);
+        } catch (_) {}
+      }
+
+      totalProcesados += comentarios.length;
+      totalExitosos += resultado.exitosos || exitososUuids.size;
+      totalFallidos += fallidos.length;
+
+      // Pausa breve entre lotes (salvo en el último)
+      if (li < lotes.length - 1) {
+        await dormir(PAUSA_ENTRE_LOTES_MS);
       }
     }
 
@@ -131,19 +176,19 @@ export async function sincronizarCola() {
     window.dispatchEvent(
       new CustomEvent('sync-completado', {
         detail: {
-          procesados: comentarios.length,
-          exitosos: resultado.exitosos || 0,
-          fallidos: resultado.fallidos || 0,
-          mensaje: resultado.mensaje || ''
+          procesados: totalProcesados,
+          exitosos: totalExitosos,
+          fallidos: totalFallidos,
+          mensaje: `Sincronización: ${totalExitosos} enviado(s), ${totalFallidos} fallido(s)`
         }
       })
     );
 
     return {
-      procesados: comentarios.length,
-      exitosos: resultado.exitosos || 0,
-      fallidos: resultado.fallidos || 0,
-      mensaje: resultado.mensaje || ''
+      procesados: totalProcesados,
+      exitosos: totalExitosos,
+      fallidos: totalFallidos,
+      mensaje: ''
     };
   } catch (err) {
     console.error('[sync.js] Error sincronizando cola:', err);

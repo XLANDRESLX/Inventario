@@ -1,0 +1,59 @@
+body { background-color: #f8f9fa; }
+.app-main { padding-top: 4.5rem; padding-bottom: 2rem; }
+.badge-estado { font-size: .75rem; padding: .4em .6em; }
+.buscador { width: 260px; max-width: 100%; }
+.estado-vacio-icono { font-size: 2.5rem; opacity: .6; }
+
+/* Skeleton de carga */
+.skeleton-text {
+  background: linear-gradient(90deg, #ececec 25%, #f5f5f5 50%, #ececec 75%);
+  background-size: 200% 100%; animation: skeleton 1.5s infinite;
+  border-radius: 4px; height: .9rem; min-width: 3rem;
+}
+@keyframes skeleton { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton-text { animation: none; } }
+
+/* Comentarios */
+.comentario-pendiente { border-left: 4px solid #ffc107; background-color: #fffdf3; }
+.comentario-enviado { border-left: 4px solid #198754; }
+
+/* Tablas */
+.table-inventario tbody tr td { vertical-align: middle; font-size: .9rem; }
+.table-admin { font-size: .85rem; }
+.table-admin th, .table-admin td { padding: .5rem; vertical-align: middle; }
+.table-admin td.acciones { white-space: nowrap; }
+.table-admin td.acciones .btn + .btn { margin-left: .25rem; }
+
+/* Navegación lateral (empresa y admin) */
+.sidebar-sticky { position: sticky; top: 4.5rem; }
+.sidebar-header {
+  background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+  color: #fff; border-radius: .5rem; word-break: break-word;
+}
+.sidebar-nav .btn-seccion { border: 0; border-left: 4px solid transparent; border-radius: .375rem; margin-bottom: 2px; background-color: #f8f9fa; color: #495057; white-space: nowrap; }
+.sidebar-nav .btn-seccion:hover { background-color: #e9ecef; }
+.sidebar-nav .btn-seccion.active { background-color: #0d6efd; color: #fff; border-left-color: #fff; }
+
+/* Navegación móvil: pills con scroll horizontal */
+.nav-movil { display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .25rem; -webkit-overflow-scrolling: touch; }
+.nav-movil .btn { white-space: nowrap; flex: 0 0 auto; }
+
+.breadcrumb-app { margin-bottom: 1rem; font-size: .9rem; }
+.breadcrumb-app .breadcrumb { margin-bottom: 0; flex-wrap: wrap; }
+
+.tarjeta-stat { border: 0; color: #fff; }
+.tarjeta-stat .valor { font-size: 2rem; font-weight: 600; line-height: 1.1; }
+
+@media (max-width: 767.98px) {
+  .table-admin { font-size: .78rem; }
+  .table-admin th, .table-admin td { padding: .4rem; }
+  .sidebar-sticky { position: static; }
+}
+
+/* Fotografías de ítems */
+.foto-mini { width: 40px; height: 40px; border-radius: .375rem; object-fit: cover; flex: 0 0 40px; background: #e9ecef; }
+.foto-vacia { display: inline-flex; align-items: center; justify-content: center; color: #adb5bd; }
+.foto-preview { width: 72px; height: 72px; border-radius: .375rem; object-fit: cover; border: 1px solid #dee2e6; }
+.ficha-foto { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: .5rem; border: 1px solid #dee2e6; display: block; }
+.ficha-sin-foto { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25rem; background: #f1f3f5; color: #adb5bd; font-size: 2.5rem; }
+.ficha-texto { white-space: pre-wrap; word-break: break-word; }

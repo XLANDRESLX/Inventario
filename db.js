@@ -8,9 +8,10 @@
  */
 
 const DB_NAME = 'InventarioOfflineDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_SESSION = 'usuarios_session';
 const STORE_COLA = 'cola_sincronizacion';
+const STORE_META = 'meta_sincronizacion';
 
 let dbPromise = null;
 
@@ -18,7 +19,7 @@ let dbPromise = null;
  * Inicializa la base de datos IndexedDB y crea los ObjectStores si no existen.
  * Devuelve una promesa que resuelve con la instancia de IDBDatabase.
  */
-function initDB() {
+export function initDB() {
   if (dbPromise) return dbPromise;
 
   dbPromise = new Promise((resolve, reject) => {
@@ -38,6 +39,11 @@ function initDB() {
         const storeCola = db.createObjectStore(STORE_COLA, { keyPath: 'id', autoIncrement: true });
         storeCola.createIndex('uuid', 'uuid', { unique: true });
         storeCola.createIndex('estado', 'estado', { unique: false });
+      }
+
+      // ObjectStore de metadata de sincronización (última fecha sincronizada por ítem)
+      if (!db.objectStoreNames.contains(STORE_META)) {
+        const storeMeta = db.createObjectStore(STORE_META, { keyPath: 'id_item' });
       }
     };
 
@@ -175,6 +181,29 @@ export function eliminarDeCola(id) {
 }
 
 /**
+ * Actualiza el contador de intentos de un registro en la cola por su ID autoincremental.
+ * @param {number} id
+ * @param {number} intentos
+ * @returns {Promise<boolean>}
+ */
+export function actualizarIntentosEnCola(id, intentos) {
+  return getStore(STORE_COLA, 'readwrite').then((store) => {
+    const req = store.get(id);
+    return new Promise((resolve, reject) => {
+      req.onsuccess = () => {
+        const registro = req.result;
+        if (!registro) return resolve(false);
+        registro.intentos = intentos;
+        const putReq = store.put(registro);
+        putReq.onsuccess = () => resolve(true);
+        putReq.onerror = () => reject(putReq.error);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  });
+}
+
+/**
  * Elimina un registro de la cola por su UUID (útil tras confirmación de envío).
  * @param {string} uuid
  * @returns {Promise<boolean>}
@@ -189,6 +218,37 @@ export function eliminarDeColaPorUuid(uuid) {
         if (!registro) return resolve(false);
         return eliminarDeCola(registro.id).then(resolve, reject);
       };
+      req.onerror = () => reject(req.error);
+    });
+  });
+}
+
+/**
+ * Guarda la última fecha de sincronización de comentarios para un ítem.
+ * @param {string} idItem
+ * @param {string} fecha ISO string
+ */
+export function guardarMetaSync(idItem, fecha) {
+  return getStore(STORE_META, 'readwrite').then((store) => {
+    const registro = { id_item: idItem, ultima_fecha: fecha };
+    const req = store.put(registro);
+    return new Promise((resolve, reject) => {
+      req.onsuccess = () => resolve(registro);
+      req.onerror = () => reject(req.error);
+    });
+  });
+}
+
+/**
+ * Obtiene la última fecha de sincronización de comentarios para un ítem.
+ * @param {string} idItem
+ * @returns {Promise<string|null>} ISO string o null si nunca se sincronizó
+ */
+export function obtenerMetaSync(idItem) {
+  return getStore(STORE_META, 'readonly').then((store) => {
+    const req = store.get(idItem);
+    return new Promise((resolve, reject) => {
+      req.onsuccess = () => resolve(req.result ? req.result.ultima_fecha : null);
       req.onerror = () => reject(req.error);
     });
   });
@@ -222,4 +282,4 @@ function generarUUID() {
   });
 }
 
-export { DB_NAME, DB_VERSION, STORE_SESSION, STORE_COLA };
+export { DB_NAME, DB_VERSION, STORE_SESSION, STORE_COLA, STORE_META };
