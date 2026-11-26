@@ -1,6 +1,7 @@
 import { cargarDatosEmpresa, cargarComentarios } from '../models/empresaModel.js';
 import { EmpresaView } from '../views/empresaView.js';
 import { fichaItem } from '../ui.js';
+import { leer, Q } from '../api.js';
 
 export class EmpresaController {
   constructor(sesion) {
@@ -63,7 +64,24 @@ export class EmpresaController {
     }
   }
 
-  /** Vuelve a cargar la sección activa con datos frescos del servidor (usado por sincronía automática). */
+  /** Sincroniza ítems nuevos sin recargar la vista: solo agrega al DOM los que faltan. */
+  async sincronizarItemsIncremental() {
+    const id = this.empresa.id_empresa;
+    try {
+      const d = await leer(Q.inventario(id), { forzar: true });
+      const nuevos = d.items || [];
+      const existentes = new Set(this.items.map(i => i.id_item));
+      const nombreDiv = new Map(this.divisiones.map(x => [x.id_division, x.nombre_division]));
+      for (const it of nuevos) {
+        if (!existentes.has(it.id_item)) {
+          this.items.push(it);
+          this.view.agregarFilaItem(it, nombreDiv.get(it.id_division) || '');
+        }
+      }
+    } catch (e) { /* silencioso */ }
+  }
+
+  /** Vuelve a cargar la sección activa con datos frescos del servidor. */
   refrescarForzado() {
     if (this.seccion) this.ir(this.seccion, { forzar: true });
   }

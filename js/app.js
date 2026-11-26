@@ -124,10 +124,10 @@ function init() {
   initSync(pintarConexion);
   iniciarSincroniaAutomatica();   // revalida caché cada 30 s para ver ítems de compañeros
 
-  // Al recibir aviso de datos nuevos, refrescar la sección activa del controlador correspondiente
-  window.addEventListener('sincronia-datos-nuevos', () => {
-    if (adminCtrl) adminCtrl.refrescarForzado();
-    else if (empresaCtrl) empresaCtrl.refrescarForzado();
+  // Al recibir aviso de datos nuevos, agregar solo los ítems nuevos sin recargar la vista
+  window.addEventListener('sincronia-datos-nuevos', async () => {
+    if (adminCtrl) await adminCtrl.sincronizarItemsIncremental();
+    else if (empresaCtrl) await empresaCtrl.sincronizarItemsIncremental();
   });
 
   // Al volver a la pestaña, limpiar caché internamente para traer datos frescos (sin toast al usuario)

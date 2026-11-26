@@ -88,19 +88,39 @@ export class EmpresaView {
   renderInventario(items, divisiones, idDivFiltro = '') {
     const nombreDiv = new Map(divisiones.map(d => [d.id_division, d.nombre_division]));
     const opciones = divisiones.map(d => `<option value="${esc(d.id_division)}" ${d.id_division === idDivFiltro ? 'selected' : ''}>${esc(d.nombre_division)}</option>`).join('');
-    const filas = items.map(it => `<tr data-buscar="${esc(textoBusquedaItem(it, nombreDiv.get(it.id_division)))}" data-div="${esc(it.id_division)}" data-est="${esc(it.estado)}">
-      <td><code>${esc(it.codigo_sku || '-')}</code></td><td>${celdaProducto(it)}</td>
-      <td class="d-none d-md-table-cell"><span class="badge bg-secondary">${esc(nombreDiv.get(it.id_division) || 'Sin división')}</span></td>
-      <td>${badgeEstadoItem(it.estado)}</td>
-      <td class="text-end">${esc(it.cantidad)} <span class="text-muted small">${esc(it.unidad)}</span></td>
-      <td class="text-end text-nowrap"><button class="btn btn-sm btn-outline-secondary" data-accion="ver-ficha" data-id="${esc(it.id_item)}" title="Ver ficha completa" aria-label="Ver ficha de ${esc(it.nombre_producto)}"><i class="bi bi-eye"></i></button>
-        <button class="btn btn-sm btn-outline-primary" data-accion="ver-com" data-id="${esc(it.id_item)}" data-nombre="${esc(it.nombre_producto)}" title="Comentarios" aria-label="Comentarios de ${esc(it.nombre_producto)}"><i class="bi bi-chat-text"></i></button></td></tr>`).join('');
+    const filas = items.map(it => this.filaItemHtml(it, nombreDiv.get(it.id_division))).join('');
     const filtros = (divisiones.length > 1 ? `<select class="form-select form-select-sm" style="width:auto" data-filtro="division" aria-label="Filtrar por división"><option value="">Todas las divisiones</option>${opciones}</select>` : '')
       + (items.length ? `<select class="form-select form-select-sm" style="width:auto" data-filtro="estado" aria-label="Filtrar por estado"><option value="">Todos los estados</option>${ESTADOS_ITEM.map(e => `<option>${e}</option>`).join('')}</select>` : '');
     this.area.innerHTML = cabecera('bi-box', 'Inventario', `<span class="badge bg-secondary" data-contador="ítem"></span>${filtros}${items.length ? buscador('Buscar SKU, producto, marca, serie...') : ''}`) + (items.length
       ? `<div class="card shadow-sm"><div class="card-body p-0"><div class="table-responsive"><table class="table table-inventario table-hover mb-0"><thead class="table-light"><tr><th>SKU</th><th>Producto</th><th class="d-none d-md-table-cell">División</th><th>Estado</th><th class="text-end">Cant.</th><th></th></tr></thead>
         <tbody>${filas}<tr class="sin-resultados" hidden><td colspan="6" class="text-center text-muted py-4">Ningún ítem coincide con los filtros.</td></tr></tbody></table></div></div></div>`
       : `<div class="card shadow-sm">${estadoVacio('bi-box', 'No hay productos en el inventario')}</div>`);
+    activarFiltros(this.area);
+  }
+
+  /** Genera el HTML de una fila de ítem para la tabla de inventario. */
+  filaItemHtml(it, nombreDiv) {
+    return `<tr data-buscar="${esc(textoBusquedaItem(it, nombreDiv))}" data-div="${esc(it.id_division)}" data-est="${esc(it.estado)}">
+      <td><code>${esc(it.codigo_sku || '-')}</code></td><td>${celdaProducto(it)}</td>
+      <td class="d-none d-md-table-cell"><span class="badge bg-secondary">${esc(nombreDiv || 'Sin división')}</span></td>
+      <td>${badgeEstadoItem(it.estado)}</td>
+      <td class="text-end">${esc(it.cantidad)} <span class="text-muted small">${esc(it.unidad)}</span></td>
+      <td class="text-end text-nowrap"><button class="btn btn-sm btn-outline-secondary" data-accion="ver-ficha" data-id="${esc(it.id_item)}" title="Ver ficha completa" aria-label="Ver ficha de ${esc(it.nombre_producto)}"><i class="bi bi-eye"></i></button>
+        <button class="btn btn-sm btn-outline-primary" data-accion="ver-com" data-id="${esc(it.id_item)}" data-nombre="${esc(it.nombre_producto)}" title="Comentarios" aria-label="Comentarios de ${esc(it.nombre_producto)}"><i class="bi bi-chat-text"></i></button></td></tr>`;
+  }
+
+  /** Agrega una fila de ítem al final de la tabla existente sin recargar toda la vista. */
+  agregarFilaItem(it, nombreDiv) {
+    const tabla = this.area.querySelector('table.table-inventario tbody');
+    if (!tabla) return;
+    const vacia = tabla.querySelector('tr.sin-resultados');
+    if (vacia) vacia.hidden = true;
+    tabla.insertAdjacentHTML('beforeend', this.filaItemHtml(it, nombreDiv));
+    const cont = this.area.querySelector('[data-contador]');
+    if (cont) {
+      const n = parseInt(cont.textContent) || 0;
+      cont.textContent = `${n + 1} ${cont.dataset.contador}s`;
+    }
     activarFiltros(this.area);
   }
 

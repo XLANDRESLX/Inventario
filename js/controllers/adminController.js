@@ -281,7 +281,27 @@ export class AdminController {
     if (r) { toast('Ítem duplicado', 'success'); this.irSeccion('inventario', { forzar: true }); }
   }
 
-  /** Vuelve a cargar la sección activa con datos frescos del servidor (usado por sincronía automática). */
+  /** Sincroniza ítems nuevos sin recargar la vista: solo agrega al DOM los que faltan. */
+  async sincronizarItemsIncremental() {
+    if (!this.emp) return;
+    const id = this.emp.id_empresa;
+    try {
+      const d = await leer(Q.invAdmin(id), { forzar: true });
+      const nuevos = d.items || [];
+      const existentes = new Set(this.datos.items.map(i => i.id_item));
+      const nombreDiv = new Map(this.datos.divisiones.map(x => [x.id_division, x.nombre_division]));
+      let agregado = false;
+      for (const it of nuevos) {
+        if (!existentes.has(it.id_item)) {
+          this.datos.items.push(it);
+          this.view.agregarFilaItem(it, nombreDiv.get(it.id_division) || '');
+          agregado = true;
+        }
+      }
+    } catch (e) { /* silencioso: la próxima pasada lo intentará de nuevo */ }
+  }
+
+  /** Vuelve a cargar la sección activa con datos frescos del servidor. */
   refrescarForzado() {
     if (this.seccion) this.irSeccion(this.seccion, { forzar: true });
   }

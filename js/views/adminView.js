@@ -160,12 +160,7 @@ export class AdminView {
     const nombreDiv = new Map(divisiones.map(d => [d.id_division, d.nombre_division]));
     const opciones = divisiones.map(d => `<option value="${esc(d.id_division)}" ${d.id_division === idDivFiltro ? 'selected' : ''}>${esc(d.nombre_division)}</option>`).join('');
     const opcEstado = ESTADOS_ITEM.map(e => `<option ${e === 'Bueno' ? 'selected' : ''}>${e}</option>`).join('');
-    const filas = items.map(it => `<tr data-buscar="${esc(textoBusquedaItem(it, nombreDiv.get(it.id_division)))}" data-div="${esc(it.id_division)}" data-est="${esc(it.estado)}">
-      <td><code>${esc(it.codigo_sku)}</code></td><td>${celdaProducto(it)}</td>
-      <td class="d-none d-md-table-cell"><span class="badge bg-secondary">${esc(nombreDiv.get(it.id_division) || 'Sin división')}</span></td>
-      <td>${badgeEstadoItem(it.estado)}</td>
-      <td class="text-end">${esc(it.cantidad)} <span class="text-muted small">${esc(it.unidad)}</span></td>
-      <td class="acciones text-end">${btnIcono('ver-ficha', it.id_item, 'bi-eye', 'Ver ficha completa', 'outline-secondary')}${btnIcono('ver-com', it.id_item, 'bi-chat-text', 'Ver comentarios', 'outline-primary')}${btnIcono('duplicar-item', it.id_item, 'bi-copy', 'Duplicar ítem', 'outline-info')}${btnIcono('editar-item', it.id_item, 'bi-pencil', 'Editar ítem')}${btnIcono('eliminar-item', it.id_item, 'bi-trash', 'Eliminar ítem', 'outline-danger')}</td></tr>`).join('');
+    const filas = items.map(it => this.filaItemHtml(it, nombreDiv.get(it.id_division))).join('');
     const col = (cols, label, ctl) => `<div class="col-md-${cols}"><label class="form-label small mb-1">${label}</label>${ctl}</div>`;
     const form = this._formNuevo('form-item', 'Nuevo ítem',
       col(3, 'División / Sala', `<select class="form-select" name="id_division" required><option value="">Selecciona...</option>${opciones}</select>`) +
@@ -188,6 +183,31 @@ export class AdminView {
       (items.length
         ? this._tabla('<th>SKU</th><th>Producto</th><th class="d-none d-md-table-cell">División</th><th>Estado</th><th class="text-end">Cant.</th><th class="text-end">Acciones</th>', filas, 'Ningún ítem coincide con los filtros.', 6)
         : `<div class="card shadow-sm">${estadoVacio('bi-box', 'No hay ítems de inventario')}</div>`);
+    activarFiltros(this.main);
+  }
+
+  /** Genera el HTML de una fila de ítem para la tabla de inventario. */
+  filaItemHtml(it, nombreDiv) {
+    return `<tr data-buscar="${esc(textoBusquedaItem(it, nombreDiv))}" data-div="${esc(it.id_division)}" data-est="${esc(it.estado)}">
+      <td><code>${esc(it.codigo_sku)}</code></td><td>${celdaProducto(it)}</td>
+      <td class="d-none d-md-table-cell"><span class="badge bg-secondary">${esc(nombreDiv || 'Sin división')}</span></td>
+      <td>${badgeEstadoItem(it.estado)}</td>
+      <td class="text-end">${esc(it.cantidad)} <span class="text-muted small">${esc(it.unidad)}</span></td>
+      <td class="acciones text-end">${btnIcono('ver-ficha', it.id_item, 'bi-eye', 'Ver ficha completa', 'outline-secondary')}${btnIcono('ver-com', it.id_item, 'bi-chat-text', 'Ver comentarios', 'outline-primary')}${btnIcono('duplicar-item', it.id_item, 'bi-copy', 'Duplicar ítem', 'outline-info')}${btnIcono('editar-item', it.id_item, 'bi-pencil', 'Editar ítem')}${btnIcono('eliminar-item', it.id_item, 'bi-trash', 'Eliminar ítem', 'outline-danger')}</td></tr>`;
+  }
+
+  /** Agrega una fila de ítem al final de la tabla existente sin recargar toda la vista. */
+  agregarFilaItem(it, nombreDiv) {
+    const tabla = this.main.querySelector('table.table-admin tbody');
+    if (!tabla) return;
+    const vacia = tabla.querySelector('tr.sin-resultados');
+    if (vacia) vacia.hidden = true;
+    tabla.insertAdjacentHTML('beforeend', this.filaItemHtml(it, nombreDiv));
+    const cont = this.main.querySelector('[data-contador]');
+    if (cont) {
+      const n = parseInt(cont.textContent) || 0;
+      cont.textContent = `${n + 1} ${cont.dataset.contador}s`;
+    }
     activarFiltros(this.main);
   }
 

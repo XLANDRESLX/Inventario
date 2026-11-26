@@ -160,7 +160,7 @@ const ACCIONES_LECTURA = [
 
 /** Invalida la caché de lectura cada `intervaloMs` si la pestaña está visible
  *  y avisa mediante evento `sincronia-datos-nuevos` para que las vistas se refresquen. */
-export function iniciarSincroniaAutomatica(intervaloMs = 30000) {
+export function iniciarSincroniaAutomatica(intervaloMs = 1000) {
   detenerSincroniaAutomatica();
   _temporizadorSincronia = setInterval(() => {
     if (document.visibilityState !== 'visible') return;
