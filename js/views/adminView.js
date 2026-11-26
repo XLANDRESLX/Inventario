@@ -165,7 +165,7 @@ export class AdminView {
       <td class="d-none d-md-table-cell"><span class="badge bg-secondary">${esc(nombreDiv.get(it.id_division) || 'Sin división')}</span></td>
       <td>${badgeEstadoItem(it.estado)}</td>
       <td class="text-end">${esc(it.cantidad)} <span class="text-muted small">${esc(it.unidad)}</span></td>
-      <td class="acciones text-end">${btnIcono('ver-ficha', it.id_item, 'bi-eye', 'Ver ficha completa', 'outline-secondary')}${btnIcono('ver-com', it.id_item, 'bi-chat-text', 'Ver comentarios', 'outline-primary')}${btnIcono('editar-item', it.id_item, 'bi-pencil', 'Editar ítem')}${btnIcono('eliminar-item', it.id_item, 'bi-trash', 'Eliminar ítem', 'outline-danger')}</td></tr>`).join('');
+      <td class="acciones text-end">${btnIcono('ver-ficha', it.id_item, 'bi-eye', 'Ver ficha completa', 'outline-secondary')}${btnIcono('ver-com', it.id_item, 'bi-chat-text', 'Ver comentarios', 'outline-primary')}${btnIcono('duplicar-item', it.id_item, 'bi-copy', 'Duplicar ítem', 'outline-info')}${btnIcono('editar-item', it.id_item, 'bi-pencil', 'Editar ítem')}${btnIcono('eliminar-item', it.id_item, 'bi-trash', 'Eliminar ítem', 'outline-danger')}</td></tr>`).join('');
     const col = (cols, label, ctl) => `<div class="col-md-${cols}"><label class="form-label small mb-1">${label}</label>${ctl}</div>`;
     const form = this._formNuevo('form-item', 'Nuevo ítem',
       col(3, 'División / Sala', `<select class="form-select" name="id_division" required><option value="">Selecciona...</option>${opciones}</select>`) +
