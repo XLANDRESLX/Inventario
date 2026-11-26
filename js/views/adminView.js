@@ -157,6 +157,9 @@ export class AdminView {
 
   /* ---------- Inventario ---------- */
   renderInventario(items, divisiones, idDivFiltro = '') {
+    this._itemsActuales = items;
+    this._divisionesActuales = divisiones;
+    this._filtroDivisionActual = idDivFiltro;
     const nombreDiv = new Map(divisiones.map(d => [d.id_division, d.nombre_division]));
     const opciones = divisiones.map(d => `<option value="${esc(d.id_division)}" ${d.id_division === idDivFiltro ? 'selected' : ''}>${esc(d.nombre_division)}</option>`).join('');
     const opcEstado = ESTADOS_ITEM.map(e => `<option ${e === 'Bueno' ? 'selected' : ''}>${e}</option>`).join('');
@@ -199,7 +202,11 @@ export class AdminView {
   /** Agrega una fila de ítem al final de la tabla existente sin recargar toda la vista. */
   agregarFilaItem(it, nombreDiv) {
     const tabla = this.main.querySelector('table.table-admin tbody');
-    if (!tabla) return;
+    if (!tabla) {
+      // Si el inventario estaba vacío, sustituye únicamente el estado vacío por la tabla.
+      this.renderInventario(this._itemsActuales || [it], this._divisionesActuales || [], this._filtroDivisionActual || '');
+      return;
+    }
     const vacia = tabla.querySelector('tr.sin-resultados');
     if (vacia) vacia.hidden = true;
     tabla.insertAdjacentHTML('beforeend', this.filaItemHtml(it, nombreDiv));

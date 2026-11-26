@@ -12,6 +12,7 @@ export class EmpresaController {
     this.idDivisionFiltro = '';
     this.seccion = 'inicio';
     this._tok = 0;
+    this._sincronizandoItems = false;
 
     this.view.renderHeader(this.empresa);
     this.view.renderNav((s) => { this.idDivisionFiltro = ''; this.ir(s); });
@@ -66,6 +67,8 @@ export class EmpresaController {
 
   /** Sincroniza ítems nuevos sin recargar la vista: solo agrega al DOM los que faltan. */
   async sincronizarItemsIncremental() {
+    if (this.seccion !== 'inventario' || this._sincronizandoItems) return;
+    this._sincronizandoItems = true;
     const id = this.empresa.id_empresa;
     try {
       const d = await leer(Q.inventario(id), { forzar: true });
@@ -79,6 +82,7 @@ export class EmpresaController {
         }
       }
     } catch (e) { /* silencioso */ }
+    finally { this._sincronizandoItems = false; }
   }
 
   /** Vuelve a cargar la sección activa con datos frescos del servidor. */

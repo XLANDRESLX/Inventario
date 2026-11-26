@@ -149,22 +149,14 @@ export async function leerVarios(bodies, { onCache, forzar = false } = {}) {
 
 /** Acciones de lectura que se revalidan periódicamente para que los ítems de un
  *  compañero aparezcan sin tener que recargar la página. */
-const ACCIONES_LECTURA = [
-  'listar_empresas',
-  'obtener_divisiones',
-  'obtener_inventario',
-  'obtener_inventario_admin',
-  'listar_usuarios',
-  'obtener_comentarios_todos'
-];
-
 /** Invalida la caché de lectura cada `intervaloMs` si la pestaña está visible
- *  y avisa mediante evento `sincronia-datos-nuevos` para que las vistas se refresquen. */
+ *  y avisa mediante evento `sincronia-datos-nuevos` para incorporar ítems sin repintar la vista. */
 export function iniciarSincroniaAutomatica(intervaloMs = 1000) {
   detenerSincroniaAutomatica();
   _temporizadorSincronia = setInterval(() => {
-    if (document.visibilityState !== 'visible') return;
-    invalidarAcciones(ACCIONES_LECTURA);
+    if (document.visibilityState !== 'visible' || !navigator.onLine) return;
+    // Las lecturas incrementales usan forzar:true y actualizan la caché al responder.
+    // No vaciamos toda la caché en cada ciclo: evita parpadeos y peticiones redundantes.
     window.dispatchEvent(new Event('sincronia-datos-nuevos'));
   }, intervaloMs);
 }

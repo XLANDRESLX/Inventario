@@ -122,7 +122,7 @@ function init() {
 
   pintarConexion(navigator.onLine);
   initSync(pintarConexion);
-  iniciarSincroniaAutomatica();   // revalida caché cada 30 s para ver ítems de compañeros
+  iniciarSincroniaAutomatica(1000); // consulta cambios cada segundo sin reconstruir la vista
 
   // Al recibir aviso de datos nuevos, agregar solo los ítems nuevos sin recargar la vista
   window.addEventListener('sincronia-datos-nuevos', async () => {

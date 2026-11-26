@@ -14,6 +14,7 @@ export class AdminController {
     this.divFiltro = '';        // división preseleccionada al ir a Inventario
     this.datos = { empresas: [], divisiones: [], items: [], usuarios: [], comentarios: [] };
     this._tok = 0;              // evita que una respuesta tardía pinte una vista ya abandonada
+    this._sincronizandoItems = false;
     this._onClick = (e) => this._clic(e);
     this._onSubmit = (e) => this._enviar(e);
     this._onNav = (e) => this._navegar(e);
@@ -170,16 +171,18 @@ export class AdminController {
   _validarUnicidadItem(v, idItemExcluir = null) {
     const sku = (v.codigo_sku || '').trim();
     const serie = (v.numero_serie || '').trim();
+    const skuN = sku.toLocaleUpperCase();
+    const serieN = serie.toLocaleUpperCase();
     const dup = this.datos.items.find(it => {
       if (it.id_item === idItemExcluir) return false;
-      if (sku && it.codigo_sku && it.codigo_sku.trim() === sku) return true;
-      if (serie && it.numero_serie && it.numero_serie.trim() === serie) return true;
+      if (skuN && it.codigo_sku && it.codigo_sku.trim().toLocaleUpperCase() === skuN) return true;
+      if (serieN && it.numero_serie && it.numero_serie.trim().toLocaleUpperCase() === serieN) return true;
       return false;
     });
     if (dup) {
-      if (sku && dup.codigo_sku && dup.codigo_sku.trim() === sku)
+      if (sku && dup.codigo_sku && dup.codigo_sku.trim().toLocaleUpperCase() === skuN)
         return `El SKU "${sku}" ya está registrado en otro ítem.`;
-      if (serie && dup.numero_serie && dup.numero_serie.trim() === serie)
+      if (serie && dup.numero_serie && dup.numero_serie.trim().toLocaleUpperCase() === serieN)
         return `El número de serie "${serie}" ya está registrado en otro ítem.`;
     }
     return null;
@@ -255,7 +258,7 @@ export class AdminController {
         { name: 'codigo_sku', label: 'SKU (déjalo vacío para autogenerar)', value: '', col: 4 },
         { name: 'marca', label: 'Marca', value: it.marca, maxlength: 100, col: 4 },
         { name: 'modelo', label: 'Modelo', value: it.modelo, maxlength: 100, col: 4 },
-        { name: 'numero_serie', label: 'N.º de serie', value: it.numero_serie, maxlength: 100, col: 4 },
+        { name: 'numero_serie', label: 'N.º de serie', value: '', maxlength: 100, col: 4 },
         { name: 'estado', label: 'Estado', value: it.estado || 'Bueno', opciones: ESTADOS_ITEM, col: 4 },
         { name: 'cantidad', label: 'Cantidad', type: 'number', value: it.cantidad, required: true, col: 4 },
         { name: 'unidad', label: 'Unidad', value: it.unidad, required: true, col: 4 },
@@ -265,7 +268,7 @@ export class AdminController {
       ],
       alEnviar: (v) => {
         const error = this._validarUnicidadItem(v);
-        if (error) { toast(error, 'warning'); return; }
+        if (error) throw new Error(error);
         const body = {
           action: 'crear_item', id_empresa: this.emp.id_empresa, id_division: it.id_division,
           codigo_sku: (v.codigo_sku || '').trim(), nombre_producto: v.nombre_producto.trim(),
@@ -283,7 +286,8 @@ export class AdminController {
 
   /** Sincroniza ítems nuevos sin recargar la vista: solo agrega al DOM los que faltan. */
   async sincronizarItemsIncremental() {
-    if (!this.emp) return;
+    if (!this.emp || this.seccion !== 'inventario' || this._sincronizandoItems) return;
+    this._sincronizandoItems = true;
     const id = this.emp.id_empresa;
     try {
       const d = await leer(Q.invAdmin(id), { forzar: true });
@@ -299,6 +303,7 @@ export class AdminController {
         }
       }
     } catch (e) { /* silencioso: la próxima pasada lo intentará de nuevo */ }
+    finally { this._sincronizandoItems = false; }
   }
 
   /** Vuelve a cargar la sección activa con datos frescos del servidor. */
@@ -368,6 +373,8 @@ export class AdminController {
         { name: 'foto_base64', label: 'Fotografía', type: 'imagen', value: it.fotografia }
       ],
       alEnviar: (v) => {
+        const error = this._validarUnicidadItem(v, id);
+        if (error) throw new Error(error);
         const body = {
           action: 'actualizar_item', id_item: id, codigo_sku: v.codigo_sku.trim(), nombre_producto: v.nombre_producto.trim(),
           marca: v.marca.trim(), modelo: v.modelo.trim(), numero_serie: v.numero_serie.trim(), estado: v.estado,
