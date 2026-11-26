@@ -5,7 +5,7 @@ import { login, restaurarSesion, cerrarSesion, esSuperAdmin } from './models/aut
 import { EmpresaController } from './controllers/empresaController.js';
 import { AdminController } from './controllers/adminController.js';
 import { initSync, estaOnline, sincronizarCola, enviarComentarioModal, abrirComGlobal } from './sync-compat.js';
-import { limpiarCache, invalidarAcciones, calentarBackend } from './api.js';
+import { limpiarCache, invalidarAcciones, calentarBackend, iniciarSincroniaAutomatica } from './api.js';
 import { toast, cargando } from './ui.js';
 
 let empresaCtrl = null;
@@ -122,6 +122,15 @@ function init() {
 
   pintarConexion(navigator.onLine);
   initSync(pintarConexion);
+  iniciarSincroniaAutomatica();   // revalida caché cada 30 s para ver ítems de compañeros
+
+  // Al volver a la pestaña, limpiar caché para traer datos frescos del servidor
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      limpiarCache();
+      toast('Actualizando datos...', 'info');
+    }
+  });
 
   window.addEventListener('sync-completado', (evt) => {
     const d = evt.detail || {};
