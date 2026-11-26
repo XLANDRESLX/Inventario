@@ -63,5 +63,10 @@ export class EmpresaController {
     }
   }
 
+  /** Vuelve a cargar la sección activa con datos frescos del servidor (usado por sincronía automática). */
+  refrescarForzado() {
+    if (this.seccion) this.ir(this.seccion, { forzar: true });
+  }
+
   destruir() { this._tok++; this.view.destruir(); }
 }

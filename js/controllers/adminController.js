@@ -65,6 +65,7 @@ export class AdminController {
       'editar-item': () => this.editarItem(id),
       'eliminar-item': () => this.eliminarItem(id),
       'ver-ficha': () => this._verFicha(id),
+      'duplicar-item': () => this.duplicarItem(id),
       'ver-com': () => this._verComentarios(id)
     };
     if (acciones[accion]) acciones[accion]();
@@ -165,6 +166,25 @@ export class AdminController {
   /* ============================ Búsqueda en datos cargados ============================ */
   _item(id) { return this.datos.items.find(x => x.id_item === id); }
 
+  /** Valida que SKU y número de serie no estén ya usados por otro ítem. Retorna mensaje de error o null. */
+  _validarUnicidadItem(v, idItemExcluir = null) {
+    const sku = (v.codigo_sku || '').trim();
+    const serie = (v.numero_serie || '').trim();
+    const dup = this.datos.items.find(it => {
+      if (it.id_item === idItemExcluir) return false;
+      if (sku && it.codigo_sku && it.codigo_sku.trim() === sku) return true;
+      if (serie && it.numero_serie && it.numero_serie.trim() === serie) return true;
+      return false;
+    });
+    if (dup) {
+      if (sku && dup.codigo_sku && dup.codigo_sku.trim() === sku)
+        return `El SKU "${sku}" ya está registrado en otro ítem.`;
+      if (serie && dup.numero_serie && dup.numero_serie.trim() === serie)
+        return `El número de serie "${serie}" ya está registrado en otro ítem.`;
+    }
+    return null;
+  }
+
   _verFicha(id) {
     const it = this._item(id); if (!it) return;
     const d = this.datos.divisiones.find(x => x.id_division === it.id_division);
@@ -213,6 +233,8 @@ export class AdminController {
 
   crearItem(v, btn) {
     this.divFiltro = v.id_division;
+    const error = this._validarUnicidadItem(v);
+    if (error) { toast(error, 'warning'); return; }
     return this._ejecutar(btn, 'Guardando...', async () => escribir({
       action: 'crear_item', id_empresa: this.emp.id_empresa, id_division: v.id_division,
       codigo_sku: (v.codigo_sku || '').trim(), nombre_producto: v.nombre_producto.trim(),
@@ -221,6 +243,47 @@ export class AdminController {
       estado: v.estado, especificaciones: (v.especificaciones || '').trim(), observaciones: (v.observaciones || '').trim(),
       foto_base64: v.foto && v.foto.size ? await comprimirImagen(v.foto) : ''
     }, ['obtener_inventario_admin', 'obtener_inventario']), 'Ítem creado', () => this.irSeccion('inventario', { forzar: true }));
+  }
+
+  /** Duplica un ítem existente abriendo el formulario precargado con sus datos. */
+  async duplicarItem(id) {
+    const it = this._item(id); if (!it) return;
+    const r = await formModal({
+      titulo: 'Duplicar ítem', grande: true,
+      campos: [
+        { name: 'nombre_producto', label: 'Producto', value: it.nombre_producto + ' (copia)', required: true, col: 8 },
+        { name: 'codigo_sku', label: 'SKU (déjalo vacío para autogenerar)', value: '', col: 4 },
+        { name: 'marca', label: 'Marca', value: it.marca, maxlength: 100, col: 4 },
+        { name: 'modelo', label: 'Modelo', value: it.modelo, maxlength: 100, col: 4 },
+        { name: 'numero_serie', label: 'N.º de serie', value: it.numero_serie, maxlength: 100, col: 4 },
+        { name: 'estado', label: 'Estado', value: it.estado || 'Bueno', opciones: ESTADOS_ITEM, col: 4 },
+        { name: 'cantidad', label: 'Cantidad', type: 'number', value: it.cantidad, required: true, col: 4 },
+        { name: 'unidad', label: 'Unidad', value: it.unidad, required: true, col: 4 },
+        { name: 'especificaciones', label: 'Especificaciones', type: 'textarea', value: it.especificaciones, maxlength: 2000 },
+        { name: 'observaciones', label: 'Observaciones', type: 'textarea', value: it.observaciones, maxlength: 2000, rows: 2 },
+        { name: 'foto_base64', label: 'Fotografía', type: 'imagen', value: it.fotografia }
+      ],
+      alEnviar: (v) => {
+        const error = this._validarUnicidadItem(v);
+        if (error) { toast(error, 'warning'); return; }
+        const body = {
+          action: 'crear_item', id_empresa: this.emp.id_empresa, id_division: it.id_division,
+          codigo_sku: (v.codigo_sku || '').trim(), nombre_producto: v.nombre_producto.trim(),
+          marca: v.marca.trim(), modelo: v.modelo.trim(), numero_serie: v.numero_serie.trim(), estado: v.estado,
+          cantidad: Number(v.cantidad), unidad: v.unidad.trim(), especificaciones: v.especificaciones.trim(), observaciones: v.observaciones.trim()
+        };
+        if (v.quitar_foto) body.quitar_foto = true;
+        else if (v.foto_base64) body.foto_base64 = v.foto_base64;
+        else if (it.fotografia) body.foto_base64 = it.fotografia;
+        return escribir(body, ['obtener_inventario_admin', 'obtener_inventario']);
+      }
+    });
+    if (r) { toast('Ítem duplicado', 'success'); this.irSeccion('inventario', { forzar: true }); }
+  }
+
+  /** Vuelve a cargar la sección activa con datos frescos del servidor (usado por sincronía automática). */
+  refrescarForzado() {
+    if (this.seccion) this.irSeccion(this.seccion, { forzar: true });
   }
 
   async editarEmpresa(id) {

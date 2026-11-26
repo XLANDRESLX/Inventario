@@ -10,12 +10,13 @@
 import { GAS_URL } from './config.js';
 
 const PREFIJO = 'inv:cache:';
-const FRESCO_MS = 20 * 1000;      // dentro de este margen no se vuelve a pedir
+const FRESCO_MS = 8 * 1000;       // dentro de este margen no se vuelve a pedir (8 s)
 const CADUCA_MS = 12 * 60 * 60 * 1000; // pasado esto el dato guardado se descarta
 const TIMEOUT_MS = 30 * 1000;
 
 const memoria = new Map();
 const enVuelo = new Map();
+let _temporizadorSincronia = null;
 
 const clave = (b) => {
   const { action, ...resto } = b;
@@ -142,4 +143,35 @@ export async function leerVarios(bodies, { onCache, forzar = false } = {}) {
     if (cs.every(Boolean)) onCache(cs);
   }
   return Promise.all(bodies.map(b => leer(b, { forzar })));
+}
+
+/* ============================ Sincronización automática ============================ */
+
+/** Acciones de lectura que se revalidan periódicamente para que los ítems de un
+ *  compañero aparezcan sin tener que recargar la página. */
+const ACCIONES_LECTURA = [
+  'listar_empresas',
+  'obtener_divisiones',
+  'obtener_inventario',
+  'obtener_inventario_admin',
+  'listar_usuarios',
+  'obtener_comentarios_todos'
+];
+
+/** Invalida la caché de lectura cada `intervaloMs` si la pestaña está visible
+ *  y avisa mediante evento `sincronia-datos-nuevos` para que las vistas se refresquen. */
+export function iniciarSincroniaAutomatica(intervaloMs = 30000) {
+  detenerSincroniaAutomatica();
+  _temporizadorSincronia = setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
+    invalidarAcciones(ACCIONES_LECTURA);
+    window.dispatchEvent(new Event('sincronia-datos-nuevos'));
+  }, intervaloMs);
+}
+
+export function detenerSincroniaAutomatica() {
+  if (_temporizadorSincronia) {
+    clearInterval(_temporizadorSincronia);
+    _temporizadorSincronia = null;
+  }
 }
